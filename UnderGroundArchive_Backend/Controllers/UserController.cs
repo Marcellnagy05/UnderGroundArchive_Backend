@@ -41,6 +41,43 @@ namespace UnderGroundArchive_Backend.Controllers
             return book == null ? NotFound() : book;
         }
 
+        // Request endpoints
+
+        [HttpGet("requests")]
+        public async Task<ActionResult<IEnumerable<Requests>>> GetRequests()
+        {
+
+
+            return await _dbContext.Requests.ToListAsync();
+        }
+
+        [HttpGet("request/{id}")]
+        public async Task<ActionResult<Requests>> GetRequest(int id)
+        {
+            var request = await _dbContext.Requests.FirstOrDefaultAsync(j => j.RequestId == id);
+            return request == null ? NotFound() : request;
+        }
+
+        [HttpPost("createRequest")]
+        public async Task<IActionResult> CreateRequest(Requests request)
+        {
+            if (request.RequestType <= 0)
+            {
+                return BadRequest("Invalid RequestType specified.");
+            }
+
+            if (string.IsNullOrEmpty(request.RequesterId))
+            {
+                return BadRequest("RequesterId is required.");
+            }
+
+ 
+            _dbContext.Requests.Add(request);
+            await _dbContext.SaveChangesAsync();
+
+            return CreatedAtAction("GetRequest", new { id = request.RequestId }, request);
+        }
+
         // ReaderRating endpoints
 
         [HttpGet("readerRatings")]
@@ -219,6 +256,109 @@ namespace UnderGroundArchive_Backend.Controllers
             await _dbContext.SaveChangesAsync();
             return NoContent();
         }
+
+        // Favorite endpoints
+
+
+        [HttpGet("favorites")]
+        public async Task<IActionResult> GetFavorites()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            // Retrieve the favorites from the user's Favourites property (stored as a comma-separated string)
+            var favoriteIds = user.Favourites?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+            var favorites = await _dbContext.Books.Where(book => favoriteIds.Contains(book.BookId.ToString())).ToListAsync();
+
+            return Ok(favorites);
+        }
+
+        [HttpPost("addFavorite/{bookId}")]
+        public async Task<IActionResult> AddFavorite(int bookId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var bookExists = await _dbContext.Books.AnyAsync(b => b.BookId == bookId);
+            if (!bookExists)
+            {
+                return BadRequest("The specified Book does not exist.");
+            }
+
+            // Add the book ID to the user's Favourites property
+            var favoriteIds = user.Favourites?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>();
+            if (favoriteIds.Contains(bookId.ToString()))
+            {
+                return BadRequest("This book is already in your favorites.");
+            }
+
+            favoriteIds.Add(bookId.ToString());
+            user.Favourites = string.Join(",", favoriteIds);
+
+            _dbContext.Users.Update(user);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok("Book added to favorites.");
+        }
+
+        [HttpDelete("removeFavorite/{bookId}")]
+        public async Task<IActionResult> RemoveFavorite(int bookId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var favoriteIds = user.Favourites?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>();
+            if (!favoriteIds.Contains(bookId.ToString()))
+            {
+                return BadRequest("This book is not in your favorites.");
+            }
+
+            favoriteIds.Remove(bookId.ToString());
+            user.Favourites = string.Join(",", favoriteIds);
+
+            _dbContext.Users.Update(user);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok("Book removed from favorites.");
+        }
+
+        [HttpPut("updateFavorites")]
+        public async Task<IActionResult> UpdateFavorites([FromBody] List<int> bookIds)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            // Validate that all provided book IDs exist
+            var validBooks = await _dbContext.Books
+                .Where(book => bookIds.Contains(book.BookId))
+                .Select(book => book.BookId)
+                .ToListAsync();
+
+            if (validBooks.Count != bookIds.Count)
+            {
+                return BadRequest("Some provided book IDs are invalid.");
+            }
+
+            // Update the user's Favourites property
+            user.Favourites = string.Join(",", bookIds);
+            _dbContext.Users.Update(user);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok("Favorites updated successfully.");
+        }
+
 
     }
 }

@@ -27,7 +27,7 @@ namespace UnderGroundArchive_Backend.Controllers
             return Ok(users);
         }
 
-        [HttpGet("users/{id}")]
+        [HttpGet("user/{id}")]
         public async Task<IActionResult> GetUser(string id)
         {
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
@@ -149,8 +149,8 @@ namespace UnderGroundArchive_Backend.Controllers
             {
                 return BadRequest();
             }
-            //TODO
-            //modifiedComment.ModositasIdeje = DateTime.Now;
+
+            modifiedReaderRating.ModifiedAt = DateTime.Now;
             _dbContext.Entry(modifiedReaderRating).State = EntityState.Modified;
             await _dbContext.SaveChangesAsync();
             return NoContent();
@@ -209,8 +209,8 @@ namespace UnderGroundArchive_Backend.Controllers
             {
                 return BadRequest();
             }
-            //TODO
-            //modifiedComment.ModositasIdeje = DateTime.Now;
+
+            modifiedCriticRating.ModifiedAt = DateTime.Now;
             _dbContext.Entry(modifiedCriticRating).State = EntityState.Modified;
             await _dbContext.SaveChangesAsync();
             return NoContent();
@@ -268,8 +268,8 @@ namespace UnderGroundArchive_Backend.Controllers
             {
                 return BadRequest();
             }
-            //TODO
-            //modifiedComment.ModositasIdeje = DateTime.Now;
+            
+            modifiedComment.ModifiedAt = DateTime.Now;
             _dbContext.Entry(modifiedComment).State = EntityState.Modified;
             await _dbContext.SaveChangesAsync();
             return NoContent();

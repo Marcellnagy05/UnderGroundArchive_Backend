@@ -12,7 +12,7 @@ using UnderGroundArchive_Backend.Dbcontext;
 namespace UnderGroundArchive_Backend.Migrations
 {
     [DbContext(typeof(UGA_DBContext))]
-    [Migration("20250118172948_commentsUpdated")]
+    [Migration("20250121174450_commentsUpdated")]
     partial class commentsUpdated
     {
         /// <inheritdoc />
@@ -360,6 +360,9 @@ namespace UnderGroundArchive_Backend.Migrations
                     b.Property<int?>("ParentCommentId")
                         .HasColumnType("int");
 
+                    b.Property<int>("ThreadId")
+                        .HasColumnType("int");
+
                     b.HasKey("CommentId");
 
                     b.HasIndex("BookId");
@@ -410,8 +413,9 @@ namespace UnderGroundArchive_Backend.Migrations
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("RaterId")
-                        .HasColumnType("int");
+                    b.Property<string>("RaterId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("RatingDescription")
                         .HasColumnType("longtext");
@@ -508,8 +512,9 @@ namespace UnderGroundArchive_Backend.Migrations
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("RaterId")
-                        .HasColumnType("int");
+                    b.Property<string>("RaterId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("RatingDescription")
                         .HasColumnType("longtext");

@@ -357,6 +357,9 @@ namespace UnderGroundArchive_Backend.Migrations
                     b.Property<int?>("ParentCommentId")
                         .HasColumnType("int");
 
+                    b.Property<int>("ThreadId")
+                        .HasColumnType("int");
+
                     b.HasKey("CommentId");
 
                     b.HasIndex("BookId");

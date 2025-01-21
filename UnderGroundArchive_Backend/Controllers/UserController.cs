@@ -5,6 +5,7 @@ using UnderGroundArchive_Backend.Models;
 using UnderGroundArchive_Backend.DTO;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace UnderGroundArchive_Backend.Controllers
 {
@@ -347,49 +348,145 @@ namespace UnderGroundArchive_Backend.Controllers
         }
 
         // Comment endpoints
-        [HttpGet("comments")]
-        public async Task<ActionResult<IEnumerable<Comments>>> GetComments()
+        [HttpGet("comments/{bookId}")]
+        public async Task<ActionResult<IEnumerable<CommentDTO>>> GetComments(int bookId)
         {
+            // Fetch all comments for a specific book, including replies
+            var comments = await _dbContext.Comments
+                .Where(c => c.BookId == bookId)
+                .OrderBy(c => c.CreatedAt)
+                .Include(c => c.Users) // Ensure that Users are included to access UserName
+                .Select(c => new CommentDTO
+                {
+                    BookId = c.BookId,
+                    CommentMessage = c.CommentMessage,
+                    ParentCommentId = c.ParentCommentId,
+                    ThreadId = c.ThreadId
+                })
+                .ToListAsync();
 
-
-            return await _dbContext.Comments.ToListAsync();
+            return Ok(comments);
         }
 
         [HttpGet("comment/{id}")]
-        public async Task<ActionResult<Comments>> GetComment(int id)
+        public async Task<ActionResult<CommentDTO>> GetComment(int id)
         {
-            var comment = await _dbContext.Comments.Include(j => j.Books).FirstOrDefaultAsync(j => j.CommentId == id);
-            return comment == null ? NotFound() : comment;
+            var comment = await _dbContext.Comments
+                .Include(c => c.Users)
+                .FirstOrDefaultAsync(c => c.CommentId == id);
+
+            if (comment == null)
+            {
+                return NotFound();
+            }
+
+            return new CommentDTO
+            {
+                BookId = comment.BookId,
+                CommentMessage = comment.CommentMessage,
+                ParentCommentId = comment.ParentCommentId,
+                ThreadId = comment.ThreadId
+            };
         }
 
         [HttpPost("createComment")]
-        public async Task<IActionResult> CreateComment(Comments comment)
+        public async Task<IActionResult> CreateComment(CommentDTO commentDto)
         {
-            var bookExists = await _dbContext.Books.AnyAsync(k => k.BookId == comment.BookId);
+            // Check if the book exists
+            var bookExists = await _dbContext.Books.AnyAsync(k => k.BookId == commentDto.BookId);
             if (!bookExists)
             {
                 return BadRequest("The specified Book does not exist.");
             }
 
+            // Retrieve the commenter ID from the current user's claims
+            var commenterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(commenterId))
+            {
+                return Unauthorized("User is not authenticated.");
+            }
+
+            // Check if the comment is a reply or a new thread
+            int threadId;
+
+            if (commentDto.ParentCommentId == null)
+            {
+                // First comment in the thread
+                threadId = 0; // We'll update this to the CommentId after saving
+            }
+            else
+            {
+                // Reply to an existing comment
+                var parentComment = await _dbContext.Comments
+                    .FirstOrDefaultAsync(c => c.CommentId == commentDto.ParentCommentId);
+
+                if (parentComment == null)
+                {
+                    return BadRequest("The specified parent comment does not exist.");
+                }
+
+                threadId = parentComment.ThreadId;
+            }
+
+            // Create the comment
+            var comment = new Comments
+            {
+                BookId = commentDto.BookId,
+                CommentMessage = commentDto.CommentMessage,
+                CommenterId = commenterId,  // Set the commenter ID
+                ParentCommentId = commentDto.ParentCommentId,
+                ThreadId = threadId
+            };
+
+            // Add the comment to the database and save
             _dbContext.Comments.Add(comment);
             await _dbContext.SaveChangesAsync();
 
+            // After the comment is saved, update the ThreadId if it's a top-level comment
+            if (commentDto.ParentCommentId == null)
+            {
+                // Update the ThreadId to be its own CommentId
+                comment.ThreadId = comment.CommentId;
+                _dbContext.Comments.Update(comment);
+                await _dbContext.SaveChangesAsync();
+            }
+
+            // Return the newly created comment
             return CreatedAtAction("GetComment", new { id = comment.CommentId }, comment);
         }
 
+
+
         [HttpPut("modifyComment/{id}")]
-        public async Task<ActionResult> PutComment(int id, Comments modifiedComment)
+        public async Task<ActionResult> PutComment(int id, [FromBody] CommentDTO modifiedCommentDto)
         {
-            if (id != modifiedComment.CommentId)
+            // Check if the comment exists
+            var existingComment = await _dbContext.Comments.FindAsync(id);
+            if (existingComment == null)
             {
-                return BadRequest();
+                return NotFound();
             }
-            
-            modifiedComment.ModifiedAt = DateTime.Now;
-            _dbContext.Entry(modifiedComment).State = EntityState.Modified;
+
+            // Retrieve the commenter ID from the current user's claims
+            var commenterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(commenterId))
+            {
+                return Unauthorized("User is not authenticated.");
+            }
+
+            // Set properties from the DTO and automatically set the modified fields
+            existingComment.CommentMessage = modifiedCommentDto.CommentMessage;
+            existingComment.ModifiedAt = DateTime.Now;
+            existingComment.CommenterId = commenterId;  // Set the commenter ID
+
+            // Update the entity and save changes
+            _dbContext.Entry(existingComment).State = EntityState.Modified;
             await _dbContext.SaveChangesAsync();
+
             return NoContent();
         }
+
 
         [HttpDelete("deleteComment/{id}")]
         public async Task<ActionResult> DeleteComment(int id)
@@ -400,9 +497,21 @@ namespace UnderGroundArchive_Backend.Controllers
                 return NotFound();
             }
 
+            // Delete all replies linked to this comment
+            var replies = await _dbContext.Comments
+                .Where(c => c.ThreadId == comment.ThreadId && c.ParentCommentId == comment.CommentId)
+                .ToListAsync();
+
+            // Remove replies first
+            _dbContext.Comments.RemoveRange(replies);
+
+            // Remove the comment itself
             _dbContext.Comments.Remove(comment);
+
+            // Save changes to database
             await _dbContext.SaveChangesAsync();
-            return NoContent();
+
+            return NoContent(); // Return successful response
         }
 
         // Favorite endpoints

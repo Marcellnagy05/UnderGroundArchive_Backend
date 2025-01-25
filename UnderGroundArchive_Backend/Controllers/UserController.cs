@@ -22,6 +22,7 @@ namespace UnderGroundArchive_Backend.Controllers
             _dbContext = dBContext;
             _userManager = userManager;
         }
+
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers()
         {

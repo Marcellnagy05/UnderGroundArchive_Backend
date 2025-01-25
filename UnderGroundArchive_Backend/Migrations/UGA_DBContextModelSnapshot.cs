@@ -176,7 +176,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("BookId");
 
-                    b.ToTable("Achievements");
+                    b.ToTable("Achievements", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.ApplicationUser", b =>
@@ -316,7 +316,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("GenreId");
 
-                    b.ToTable("Books");
+                    b.ToTable("Books", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Categories", b =>
@@ -336,7 +336,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Comments", b =>
@@ -376,7 +376,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("CommenterId");
 
-                    b.ToTable("Comments");
+                    b.ToTable("Comments", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.CompletedAchievements", b =>
@@ -400,7 +400,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("CompleterId");
 
-                    b.ToTable("CompletedAchievements");
+                    b.ToTable("CompletedAchievements", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.CriticRatings", b =>
@@ -434,7 +434,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("BookId");
 
-                    b.ToTable("CriticRatings");
+                    b.ToTable("CriticRatings", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Genre", b =>
@@ -454,7 +454,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasKey("GenreId");
 
-                    b.ToTable("Genre");
+                    b.ToTable("Genre", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Guest", b =>
@@ -475,7 +475,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasKey("GuestId");
 
-                    b.ToTable("Guest");
+                    b.ToTable("Guest", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Ranks", b =>
@@ -499,7 +499,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasKey("RankId");
 
-                    b.ToTable("Ranks");
+                    b.ToTable("Ranks", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.ReaderRatings", b =>
@@ -533,7 +533,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("BookId");
 
-                    b.ToTable("ReaderRatings");
+                    b.ToTable("ReaderRatings", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.ReportTypes", b =>
@@ -550,7 +550,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasKey("ReportTypeId");
 
-                    b.ToTable("ReportTypes");
+                    b.ToTable("ReportTypes", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Reports", b =>
@@ -589,7 +589,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("ReporterId");
 
-                    b.ToTable("Reports");
+                    b.ToTable("Reports", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Requests", b =>
@@ -620,7 +620,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasIndex("RequesterId");
 
-                    b.ToTable("Requests");
+                    b.ToTable("Requests", (string)null);
                 });
 
             modelBuilder.Entity("UnderGroundArchive_Backend.Models.Subscription", b =>
@@ -639,7 +639,7 @@ namespace UnderGroundArchive_Backend.Migrations
 
                     b.HasKey("SubscriptionId");
 
-                    b.ToTable("Subscription");
+                    b.ToTable("Subscription", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

@@ -34,6 +34,8 @@ namespace UnderGroundArchive_Backend.Controllers
             _configuration = configuration;
         }
 
+        //Account Login/Register endpoints
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserLoginDTO loginDto)
         {
@@ -78,6 +80,58 @@ namespace UnderGroundArchive_Backend.Controllers
                 return Unauthorized("Hibás felhasználónév vagy jelszó.");
             }
         }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] UserRegistrationDTO newUser)
+        {
+            if (newUser == null || string.IsNullOrEmpty(newUser.Name) ||
+                string.IsNullOrEmpty(newUser.Email) ||
+                string.IsNullOrEmpty(newUser.Password))
+            {
+                return BadRequest(new { errorCode = "MISSING_FIELDS", message = "Hiányzó kötelező mezők." });
+            }
+
+            var existingEmail = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == newUser.Email);
+            var existingName = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserName == newUser.Name);
+            if (existingEmail != null)
+            {
+                return BadRequest(new { errorCode = "EMAIL_ALREADY_EXISTS", message = "A felhasználó már létezik." });
+            }
+            else if (existingName != null)
+            {
+                return BadRequest(new { errorCode = "USERNAME_ALREADY_EXISTS", message = "A felhasználó már létezik." });
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = newUser.Name,
+                Email = newUser.Email,
+                BirthDate = newUser.BirthDate,
+                Country = newUser.Country,
+                PhoneNumber = newUser.PhoneNumber
+            };
+
+            var result = await _userManager.CreateAsync(user, newUser.Password);
+            if (!result.Succeeded)
+            {
+                var errorMessages = result.Errors.Select(e => e.Description).ToArray();
+                return BadRequest(new { errorCode = "REGISTRATION_FAILED", errors = errorMessages });
+            }
+
+            await _userManager.AddToRoleAsync(user, "Critic");
+
+            return Ok(new { message = "A felhasználó sikeresen regisztrálva." });
+        }
+
+        [HttpPost("logout")]
+        [Authorize]
+        public IActionResult Logout()
+        {
+            // Nincs szükség külön backend logikára, csak egy OK választ küldünk vissza
+            return Ok(new { message = "Sikeres kijelentkezés." });
+        }
+
+        //theme update endpoint
 
         [HttpPut("updateTheme")]
         public async Task<IActionResult> UpdateTheme([FromBody] ThemeDTO request)
@@ -142,56 +196,8 @@ namespace UnderGroundArchive_Backend.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserRegistrationDTO newUser)
-        {
-            if (newUser == null || string.IsNullOrEmpty(newUser.Name) ||
-                string.IsNullOrEmpty(newUser.Email) ||
-                string.IsNullOrEmpty(newUser.Password))
-            {
-                return BadRequest(new { errorCode = "MISSING_FIELDS", message = "Hiányzó kötelező mezők." });
-            }
 
-            var existingEmail = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == newUser.Email);
-            var existingName = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserName == newUser.Name);
-            if (existingEmail != null)
-            {
-                return BadRequest(new { errorCode = "EMAIL_ALREADY_EXISTS", message = "A felhasználó már létezik." });
-            }
-            else if(existingName != null)
-            {
-                return BadRequest(new { errorCode = "USERNAME_ALREADY_EXISTS", message = "A felhasználó már létezik." });
-            }
-
-            var user = new ApplicationUser
-            {
-                UserName = newUser.Name,
-                Email = newUser.Email,
-                BirthDate = newUser.BirthDate,
-                Country = newUser.Country,
-                PhoneNumber = newUser.PhoneNumber
-            };
-
-            var result = await _userManager.CreateAsync(user, newUser.Password);
-            if (!result.Succeeded)
-            {
-                var errorMessages = result.Errors.Select(e => e.Description).ToArray();
-                return BadRequest(new { errorCode = "REGISTRATION_FAILED", errors = errorMessages });
-            }
-
-            await _userManager.AddToRoleAsync(user, "Critic");
-
-            return Ok(new { message = "A felhasználó sikeresen regisztrálva." });
-        }
-
-        [HttpPost("logout")]
-        [Authorize]
-        public IActionResult Logout()
-        {
-            // Nincs szükség külön backend logikára, csak egy OK választ küldünk vissza
-            return Ok(new { message = "Sikeres kijelentkezés." });
-        }
-
+        //password change endpoint
 
         [HttpPut("user/password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
@@ -239,6 +245,43 @@ namespace UnderGroundArchive_Backend.Controllers
             await _dbContext.SaveChangesAsync();
 
             return Ok(new { Message = "Password changed successfully." });
+        }
+
+        //Get subcription,ranks,achievements endpoints
+
+        [HttpGet("ranks")]
+        public async Task<ActionResult<IEnumerable<Ranks>>> GetRanks()
+        {
+            var ranks = await _dbContext.Ranks.ToListAsync();
+            if (ranks == null || ranks.Count == 0)
+            {
+                return NotFound(new { Message = "No ranks found." });
+            }
+            return Ok(ranks);
+        }
+
+        [HttpGet("achievements")]
+        public async Task<ActionResult<IEnumerable<Achievements>>> GetAchievements()
+        {
+            var achievements = await _dbContext.Achievements
+                .Include(a => a.CompletedAchievements)
+                .ToListAsync();
+            if (achievements == null || achievements.Count == 0)
+            {
+                return NotFound(new { Message = "No achievements found." });
+            }
+            return Ok(achievements);
+        }
+
+        [HttpGet("subscriptions")]
+        public async Task<ActionResult<IEnumerable<Subscription>>> GetSubscriptions()
+        {
+            var subscriptions = await _dbContext.Subscription.ToListAsync();
+            if (subscriptions == null || subscriptions.Count == 0)
+            {
+                return NotFound(new { Message = "No subscriptions found." });
+            }
+            return Ok(subscriptions);
         }
 
 

@@ -757,7 +757,7 @@ namespace UnderGroundArchive_Backend.Controllers
 
 
 
-        [HttpDelete("deleteComment/{id}")]
+        [HttpPut("deleteComment/{id}")]
         public async Task<ActionResult> DeleteComment(int id)
         {
             var comment = await _dbContext.Comments.FindAsync(id);
@@ -766,21 +766,18 @@ namespace UnderGroundArchive_Backend.Controllers
                 return NotFound();
             }
 
-            // Delete all replies linked to this comment
-            var replies = await _dbContext.Comments
-                .Where(c => c.ThreadId == comment.ThreadId && c.ParentCommentId == comment.CommentId)
-                .ToListAsync();
+            var commenterId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(commenterId))
+            {
+                return Unauthorized("User is not authenticated.");
+            }
 
-            // Remove replies first
-            _dbContext.Comments.RemoveRange(replies);
+            comment.CommentMessage = $"Deleted by User";
 
-            // Remove the comment itself
-            _dbContext.Comments.Remove(comment);
-
-            // Save changes to database
+            _dbContext.Entry(comment).State = EntityState.Modified;
             await _dbContext.SaveChangesAsync();
 
-            return NoContent(); // Return successful response
+            return NoContent(); 
         }
 
 

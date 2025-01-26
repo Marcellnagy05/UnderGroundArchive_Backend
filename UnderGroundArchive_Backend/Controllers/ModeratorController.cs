@@ -202,5 +202,85 @@ namespace UnderGroundArchive_Backend.Controllers
                 return BadRequest("Hiba történt");
             }
         }
+
+        //deletion of user created content endpoints
+
+        [HttpPut("deleteComment/{id}")]
+        public async Task<ActionResult> DeleteComment(int id)
+        {
+            var comment = await _dbContext.Comments.FindAsync(id);
+            if (comment == null)
+            {
+                return NotFound();
+            }
+
+            comment.CommentMessage = $"Deleted by Moderator";
+
+            _dbContext.Entry(comment).State = EntityState.Modified;
+            await _dbContext.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+
+        [HttpDelete("deleteBook/{bookId}")]
+
+        public async Task<IActionResult> DeleteBook(int bookId)
+        {
+
+            try
+            {
+                // Fetch the book to be deleted from the database
+                var book = await _dbContext.Books
+                    .FirstOrDefaultAsync(b => b.BookId == bookId);
+
+                if (book == null)
+                {
+                    return NotFound(new { message = "A könyvet nem találjuk vagy nem jogosult a törlésére." });
+                }
+
+                // Delete related comments
+                var comments = await _dbContext.Comments
+                    .Where(c => c.BookId == bookId)
+                    .ToListAsync();
+                _dbContext.Comments.RemoveRange(comments);
+
+                // Delete related reader ratings
+                var readerRatings = await _dbContext.ReaderRatings
+                    .Where(r => r.BookId == bookId)
+                    .ToListAsync();
+                _dbContext.ReaderRatings.RemoveRange(readerRatings);
+
+                // Delete related critic ratings
+                var criticRatings = await _dbContext.CriticRatings
+                    .Where(r => r.BookId == bookId)
+                    .ToListAsync();
+                _dbContext.CriticRatings.RemoveRange(criticRatings);
+
+                // Remove the book from the favorites list of all users
+                var usersWithFavorite = await _dbContext.Users
+                    .Where(u => u.Favourites.Contains(bookId.ToString()))
+                    .ToListAsync();
+
+                foreach (var user in usersWithFavorite)
+                {
+                    // Remove the bookId from the Favourites string (if it exists)
+                    var favouritesList = user.Favourites.Split(',').Where(fav => fav != bookId.ToString()).ToList();
+                    user.Favourites = string.Join(",", favouritesList);
+
+                    _dbContext.Users.Update(user);
+                }
+
+                // Now delete the book
+                _dbContext.Books.Remove(book);
+                await _dbContext.SaveChangesAsync();
+
+                return Ok(new { message = "A könyv és annak kapcsolódó adatainak törlése sikeresen megtörtént." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Belső szerverhiba történt a könyv törlése során.", error = ex.Message });
+            }
+        }
     }
 }

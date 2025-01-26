@@ -1,4 +1,6 @@
-﻿namespace UnderGroundArchive_Backend.Models
+﻿using System.Text.Json.Serialization;
+
+namespace UnderGroundArchive_Backend.Models
 {
     public class Books
     {
@@ -14,5 +16,8 @@
         public virtual ICollection<Comments> Comments { get; set; }
         public virtual ICollection<ReaderRatings> ReaderRatings { get; set; }
         public virtual ICollection<CriticRatings> CriticRatings { get;set; }
+
+        [JsonIgnore]
+        public virtual ICollection<Chapters> Chapters { get; set; }
     }
 }

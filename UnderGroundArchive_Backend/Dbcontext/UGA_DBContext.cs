@@ -36,6 +36,7 @@ namespace UnderGroundArchive_Backend.Dbcontext
         public DbSet<Reports> Reports { get; set; }
 
         public DbSet<ReportTypes> ReportTypes { get; set; }
+        public DbSet<Chapters> Chapters { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -68,6 +69,8 @@ namespace UnderGroundArchive_Backend.Dbcontext
             modelBuilder.Entity<CriticRatings>().HasKey(cr => new { cr.RatingId });
             modelBuilder.Entity<Reports>().HasKey(c => c.ReportId);
             modelBuilder.Entity<ReportTypes>().HasKey(s => s.ReportTypeId);
+
+            modelBuilder.Entity<Chapters>().HasKey(ch => ch.ChapterId);
 
             // Foreign Keys
 
@@ -146,9 +149,16 @@ namespace UnderGroundArchive_Backend.Dbcontext
                 .HasForeignKey(cr => cr.ReporterId);
 
             modelBuilder.Entity<Reports>()
-             .HasOne(rp => rp.ReportedPeople)
-             .WithMany(b => b.ReportSubject)
-             .HasForeignKey(cr => cr.ReportedId);
+                .HasOne(rp => rp.ReportedPeople)
+                .WithMany(b => b.ReportSubject)
+                .HasForeignKey(cr => cr.ReportedId);
+
+            //Chapters table
+
+            modelBuilder.Entity<Chapters>()
+                .HasOne(b => b.Book)
+                .WithMany(g => g.Chapters)
+                .HasForeignKey(b => b.BookId);
         }
     }
 }

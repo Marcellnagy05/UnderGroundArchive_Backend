@@ -26,6 +26,8 @@ namespace UnderGroundArchive_Backend.Controllers
             _dbContext = dBContext;
         }
 
+        //Book endpoints
+
         [HttpPost("publish")]
 
         public async Task<IActionResult> PublishBook([FromBody] PublishBookDTO bookDto)
@@ -51,7 +53,7 @@ namespace UnderGroundArchive_Backend.Controllers
                     CategoryId = bookDto.CategoryId,
                     BookDescription = bookDto.BookDescription,
                     AuthorId = userId, // JWT-ből vesszük az AuthorId-t
-                                       // Comments, CriticRatings, ReaderRatings kihagyása
+                                       // Comments, CriticRatings, ReaderRatings, Chapters kihagyása
                 };
 
                 _dbContext.Books.Add(book);
@@ -178,6 +180,145 @@ namespace UnderGroundArchive_Backend.Controllers
                 return StatusCode(500, new { message = "Belső szerverhiba történt a könyv törlése során.", error = ex.Message });
             }
         }
+
+        //Chapter endpoints
+
+        [HttpGet("chapters/{bookId}")]
+        public async Task<IActionResult> GetChaptersByBook(int bookId)
+        {
+            var chapters = await _dbContext.Chapters
+                .Where(c => c.BookId == bookId)
+                .OrderBy(c => c.ChapterNumber)
+                .ToListAsync();
+
+            if (chapters == null) return NotFound();
+
+            return Ok(chapters);
+        }
+
+        [HttpGet("chapter/{bookId}/{chapterNumber}")]
+        public async Task<IActionResult> GetSpecificChapter(int bookId, int chapterNumber)
+        {
+            var chapter = await _dbContext.Chapters
+                .Where(c => c.BookId == bookId && c.ChapterNumber == chapterNumber)
+                .FirstOrDefaultAsync();
+
+            if (chapter == null) return NotFound();
+
+            return Ok(chapter);
+        }
+        [HttpPost("publishChapter")]
+        public async Task<IActionResult> AddChapter([FromBody] ChapterDTO chapterDto)
+        {
+            // Retrieve the book using BookId from chapterDto
+            var book = await _dbContext.Books.FirstOrDefaultAsync(b => b.BookId == chapterDto.BookId);
+            if (book == null)
+            {
+                return BadRequest("The specified book does not exist.");
+            }
+
+            // Retrieve the current user's ID from claims
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized("User is not authenticated.");
+            }
+
+            // Check if the current user is the author of the book
+            if (book.AuthorId != currentUserId)
+            {
+                return Unauthorized("You are not authorized to publish a chapter for this book.");
+            }
+
+            // Create a new chapter object and populate it with data from chapterDto
+            var chapter = new Chapters
+            {
+                BookId = chapterDto.BookId,
+                ChapterNumber = chapterDto.ChapterNumber,
+                ChapterTitle = chapterDto.ChapterTitle,
+                ChapterContent = chapterDto.ChapterContent
+            };
+
+            // Add the new chapter to the database
+            _dbContext.Chapters.Add(chapter);
+            await _dbContext.SaveChangesAsync();
+
+            // Return a Created response with the newly created chapter
+            return CreatedAtAction(nameof(GetSpecificChapter), new { bookId = chapterDto.BookId, chapterNumber = chapterDto.ChapterNumber }, chapter);
+        }
+
+
+
+
+        [HttpPut("modifyChapter/{chapterId}")]
+        public async Task<IActionResult> UpdateChapter(int chapterId, [FromBody] ChapterDTO chapterDto)
+        {
+            var chapter = await _dbContext.Chapters.FindAsync(chapterId);
+            if (chapter == null)
+            {
+                return NotFound("The specified chapter does not exist.");
+            }
+
+            var book = await _dbContext.Books.FirstOrDefaultAsync(b => b.BookId == chapterDto.BookId);
+            if (book == null)
+            {
+                return BadRequest("The specified book does not exist.");
+            }
+
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized("User is not authenticated.");
+            }
+
+            if (book.AuthorId != currentUserId)
+            {
+                return Unauthorized("You are not authorized to modify this chapter.");
+            }
+
+            chapter.ChapterNumber = chapterDto.ChapterNumber;
+            chapter.ChapterTitle = chapterDto.ChapterTitle;
+            chapter.ChapterContent = chapterDto.ChapterContent;
+
+            await _dbContext.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+
+
+        [HttpDelete("deleteChapter/{chapterId}")]
+        public async Task<IActionResult> DeleteChapter(int chapterId)
+        {
+            var chapter = await _dbContext.Chapters.FindAsync(chapterId);
+            if (chapter == null)
+            {
+                return NotFound("The specified chapter does not exist.");
+            }
+
+            var book = await _dbContext.Books.FirstOrDefaultAsync(b => b.BookId == chapter.BookId);
+            if (book == null)
+            {
+                return BadRequest("The specified book does not exist.");
+            }
+
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized("User is not authenticated.");
+            }
+            if (book.AuthorId != currentUserId)
+            {
+                return Unauthorized("You are not authorized to delete this chapter.");
+            }
+            _dbContext.Chapters.Remove(chapter);
+            await _dbContext.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+
+
 
 
     }

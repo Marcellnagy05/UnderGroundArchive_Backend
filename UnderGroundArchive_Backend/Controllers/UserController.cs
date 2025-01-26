@@ -882,6 +882,31 @@ namespace UnderGroundArchive_Backend.Controllers
             return Ok("Favorites updated successfully.");
         }
 
+        //get chapter endpoints
 
+        [HttpGet("chapters/{bookId}")]
+        public async Task<IActionResult> GetChaptersByBook(int bookId)
+        {
+            var chapters = await _dbContext.Chapters
+                .Where(c => c.BookId == bookId)
+                .OrderBy(c => c.ChapterNumber)
+                .ToListAsync();
+
+            if (chapters == null) return NotFound();
+
+            return Ok(chapters);
+        }
+
+        [HttpGet("chapter/{bookId}/{chapterNumber}")]
+        public async Task<IActionResult> GetSpecificChapter(int bookId, int chapterNumber)
+        {
+            var chapter = await _dbContext.Chapters
+                .Where(c => c.BookId == bookId && c.ChapterNumber == chapterNumber)
+                .FirstOrDefaultAsync();
+
+            if (chapter == null) return NotFound();
+
+            return Ok(chapter);
+        }
     }
 }

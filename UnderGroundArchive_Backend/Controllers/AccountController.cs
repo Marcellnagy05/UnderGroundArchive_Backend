@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using UnderGroundArchive_Backend.Dbcontext;
 using UnderGroundArchive_Backend.DTO;
 using UnderGroundArchive_Backend.Models;
@@ -81,35 +83,73 @@ namespace UnderGroundArchive_Backend.Controllers
                 return Unauthorized("Hibás felhasználónév vagy jelszó.");
             }
         }
-
-        [HttpPost("google-login")]
-        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto model)
+        private async Task<string> GetPhoneNumberFromGoogle(string accessToken)
         {
-            var payload = await VerifyGoogleToken(model.Token);
-            if (payload == null)
+            using (var client = new HttpClient())
             {
-                return BadRequest("Invalid Google token.");
-            }
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var response = await client.GetAsync("https://people.googleapis.com/v1/people/me?personFields=phoneNumbers");
 
-            var user = await _userManager.FindByEmailAsync(payload.Email);
-            if (user == null)
-            {
-                user = new ApplicationUser
+                if (response.IsSuccessStatusCode)
                 {
-                    UserName = payload.Email,
-                    Email = payload.Email,
-                    JoinDate = DateTime.UtcNow
-                };
+                    var content = await response.Content.ReadAsStringAsync();
+                    var json = JsonDocument.Parse(content);
+                    var phoneNumber = json.RootElement
+                        .GetProperty("phoneNumbers")[0]
+                        .GetProperty("value")
+                        .GetString();
 
-                var result = await _userManager.CreateAsync(user);
-                if (!result.Succeeded)
-                {
-                    return BadRequest(result.Errors);
+                    return phoneNumber;
                 }
             }
+            return "N/A"; // Ha nincs telefonszám, akkor "N/A"
+        }
 
-            var token = await GenerateJwtToken(user);
-            return Ok(new { jwt = token });
+
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto request)
+        {
+            var settings = new GoogleJsonWebSignature.ValidationSettings()
+            {
+                Audience = new List<string> { "500480770304-ll53e6gspf512sj82sotjmg36vcrqid7.apps.googleusercontent.com" }
+            };
+
+            try
+            {
+                var payload = await GoogleJsonWebSignature.ValidateAsync(request.Token, settings);
+
+                Console.WriteLine(payload);
+
+                var user = await _userManager.FindByEmailAsync(payload.Email);
+                if (user == null)
+                {
+                    user = new ApplicationUser
+                    {
+                        UserName = payload.FamilyName,
+                        Email = payload.Email,
+                        PhoneNumber = await GetPhoneNumberFromGoogle(request.Token),
+                        Country = payload.Locale ?? "Unknown", // Ha nincs, akkor "Unknown"
+                        BirthDate = null, // Ezt manuálisan kell megadni
+                        RankId = 1, // Alapértelmezett rang
+                        SubscriptionId = 1 // Alapértelmezett előfizetés
+                    };
+
+                    var result = await _userManager.CreateAsync(user);
+                    if (!result.Succeeded)
+                    {
+                        return BadRequest(result.Errors);
+                    }
+                }
+
+                // **Itt generálunk egy SAJÁT JWT-t**
+                await _userManager.AddToRoleAsync(user, "User");
+                var jwtToken = GenerateJwtToken(user);
+                return Ok(new { jwt = jwtToken });
+            }
+            catch (InvalidJwtException e)
+            {
+                return BadRequest($"Invalid Google token: {e.Message}");
+            }
         }
 
         private async Task<GoogleJsonWebSignature.Payload> VerifyGoogleToken(string token)
@@ -127,8 +167,6 @@ namespace UnderGroundArchive_Backend.Controllers
                 return null;
             }
         }
-
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] UserRegistrationDTO newUser)
         {
@@ -218,19 +256,31 @@ namespace UnderGroundArchive_Backend.Controllers
             // Lekérdezzük a felhasználó szerepköreit
             var userRoles = await _userManager.GetRolesAsync(user);
 
+            // LOG: Ellenőrizzük, hogy melyik érték NULL
+            Console.WriteLine($"UserName: {user.UserName}");
+            Console.WriteLine($"Id: {user.Id}");
+            Console.WriteLine($"PhoneNumber: {user.PhoneNumber}");
+            Console.WriteLine($"Country: {user.Country}");
+            Console.WriteLine($"Email: {user.Email}");
+            Console.WriteLine($"BirthDate: {user.BirthDate}");
+            Console.WriteLine($"RankId: {user.RankId}");
+            Console.WriteLine($"SubscriptionId: {user.SubscriptionId}");
+
             var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim("PhoneNumber:", user.PhoneNumber),
-                new Claim("Country:", user.Country),
-                new Claim("Email:", user.Email),
-                new Claim("BirthDate:", user.BirthDate.ToString()),
-                new Claim("RankId:", user.RankId.ToString()),
-                new Claim("SubscriptionId:", user.SubscriptionId.ToString())
-            };
-            
+{
+    new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+    new Claim(ClaimTypes.NameIdentifier, user.Id ?? string.Empty),
+    new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
+    new Claim("Country", user.Country ?? string.Empty),
+    new Claim("Email", user.Email ?? string.Empty),
+
+    // Ellenőrizd, hogy biztosan nem null!
+    new Claim("BirthDate", user.BirthDate.HasValue ? user.BirthDate.Value.ToString("yyyy-MM-dd") : "N/A"),
+    new Claim("RankId", user.RankId.HasValue ? user.RankId.Value.ToString() : "-1"),
+    new Claim("SubscriptionId", user.SubscriptionId.HasValue ? user.SubscriptionId.Value.ToString() : "-1")
+};
+
             // Szerepkörök hozzáadása a tokenhez
             claims.AddRange(userRoles.Select(role => new Claim(ClaimTypes.Role, role)));
 
@@ -247,8 +297,6 @@ namespace UnderGroundArchive_Backend.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
-
         //password change endpoint
 
         [HttpPut("user/password")]

@@ -4,15 +4,15 @@ namespace UnderGroundArchive_Backend.Models
 {
     public class ApplicationUser : IdentityUser
     {
-        public int RankId { get; set; } = 0;
-        public int SubscriptionId { get; set; } = 0;
+        public int? RankId { get; set; } = 1;
+        public int? SubscriptionId { get; set; } = 1;
         public DateTime JoinDate { get; set; } = DateTime.Now;
-        public DateTime BirthDate { get; set; }
-        public string Country { get; set; }
+        public DateTime? BirthDate { get; set; }
+        public string? Country { get; set; }
         public int RankPoints { get; set; } = 0;
         public decimal Balance { get; set; } = 0;
         public string Favourites { get; set; } = "";
-        public string Theme { get; set; } = "light";
+        public string Theme { get; set; } = "dark";
         public bool IsMuted { get; set; } = false;
         public bool IsBanned { get; set; } = false;
         public virtual ICollection<Books> Books { get; set; } = new List<Books>();

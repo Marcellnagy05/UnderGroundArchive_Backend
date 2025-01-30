@@ -69,6 +69,7 @@ public class Program
             {
                 googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
                 googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+                googleOptions.Scope.Add("https://www.googleapis.com/auth/user.phonenumbers.read");
             });
 
 

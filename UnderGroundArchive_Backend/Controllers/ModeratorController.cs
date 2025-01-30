@@ -47,6 +47,26 @@ namespace UnderGroundArchive_Backend.Controllers
             return Ok(reports);
         }
 
+        [HttpGet("pendingReports")]
+        public async Task<IActionResult> GetPendingReports()
+        {
+            var reports = await _dbContext.Reports
+                .Where(x => x.IsHandled == false)
+                .Select(r => new
+                {
+                   r.ReportId,
+                   r.ReporterId,
+                   r.ReportedId,
+                   r.ReportTypeId,
+                   r.ReportMessage,
+                   r.IsHandled,
+                   r.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(reports);
+        }
+
 
         [HttpGet("report/{id}")]
         public async Task<IActionResult> GetReport(int id)

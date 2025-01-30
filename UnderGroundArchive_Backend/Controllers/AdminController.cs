@@ -181,6 +181,19 @@ namespace UnderGroundArchive_Backend.Controllers
             request.IsApproved = true;
             request.IsHandled = true;
 
+            if (request.RequestType == 0)
+            {
+                await UpdateUserRole(request.RequesterId, "Critic");
+            }
+            else if (request.RequestType == 1)
+            {
+                await UpdateUserRole(request.RequesterId, "Author");
+            }
+            else
+            {
+                return BadRequest("Wrong RequestType");
+            }
+
             _dbContext.Requests.Update(request);
             await _dbContext.SaveChangesAsync();
 

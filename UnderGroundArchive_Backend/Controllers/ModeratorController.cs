@@ -24,63 +24,7 @@ namespace UnderGroundArchive_Backend.Controllers
             _userManager = userManager;
         }
 
-        //request endpoints
 
-        [HttpGet("requests")]
-        public async Task<IActionResult> GetAllRequests()
-        {
-            var requests = await _dbContext.Requests
-                .Select(r => new
-                {
-                    r.RequestId,
-                    r.RequesterId,
-                    r.RequestMessage,
-                    r.RequestDate,
-                    r.IsApproved,
-                    r.RequestType
-                })
-                .ToListAsync();
-
-            return Ok(requests);
-        }
-
-
-        [HttpGet("request/{id}")]
-        public async Task<IActionResult> GetRequest(int id)
-        {
-            var request = await _dbContext.Requests
-                .Where(j => j.RequestId == id)
-                .Select(r => new
-                {
-                    r.RequestId,
-                    r.RequesterId,
-                    r.RequestMessage,
-                    r.RequestDate,
-                    r.IsApproved,
-                    r.RequestType
-                })
-                .FirstOrDefaultAsync();
-
-            return request == null ? NotFound("Request not found.") : Ok(request);
-        }
-
-        [HttpPut("approveRequest")]
-        public async Task<ActionResult> ApproveRequest(int requestId)
-        {
-            var request = await _dbContext.Requests.FirstOrDefaultAsync(r => r.RequestId == requestId);
-
-            if (request == null)
-            {
-                return NotFound("Request not found.");
-            }
-
-            request.IsApproved = true;
-
-            _dbContext.Requests.Update(request);
-            await _dbContext.SaveChangesAsync();
-
-            return Ok("Request status updated to accepted.");
-        }
 
         //report endpoints
 

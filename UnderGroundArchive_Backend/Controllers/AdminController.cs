@@ -106,6 +106,106 @@ namespace UnderGroundArchive_Backend.Controllers
             return Ok(user);
         }
 
+        //request endpoints
+
+        [HttpGet("requests")]
+        public async Task<IActionResult> GetAllRequests()
+        {
+            var requests = await _dbContext.Requests
+                .Select(r => new
+                {
+                    r.RequestId,
+                    r.RequesterId,
+                    r.RequestMessage,
+                    r.RequestDate,
+                    r.IsApproved,
+                    r.RequestType
+                })
+                .ToListAsync();
+
+            return Ok(requests);
+        }
+
+
+        [HttpGet("pendingRequests")]
+        public async Task<IActionResult> GetPendingRequests()
+        {
+            var requests = await _dbContext.Requests
+                .Where(x => x.IsHandled == false)
+                .Select(r => new
+                {
+                    r.RequestId,
+                    r.RequesterId,
+                    r.RequestMessage,
+                    r.RequestDate,
+                    r.IsApproved,
+                    r.IsHandled,
+                    r.RequestType
+                })
+                .ToListAsync();
+
+            return Ok(requests);
+        }
+
+
+        [HttpGet("request/{id}")]
+        public async Task<IActionResult> GetRequest(int id)
+        {
+            var request = await _dbContext.Requests
+                .Where(j => j.RequestId == id)
+                .Select(r => new
+                {
+                    r.RequestId,
+                    r.RequesterId,
+                    r.RequestMessage,
+                    r.RequestDate,
+                    r.IsApproved,
+                    r.IsHandled,
+                    r.RequestType
+                })
+                .FirstOrDefaultAsync();
+
+            return request == null ? NotFound("Request not found.") : Ok(request);
+        }
+
+        [HttpPatch("approveRequest")]
+        public async Task<ActionResult> ApproveRequest(int requestId)
+        {
+            var request = await _dbContext.Requests.FirstOrDefaultAsync(r => r.RequestId == requestId);
+
+            if (request == null)
+            {
+                return NotFound("Request not found.");
+            }
+
+            request.IsApproved = true;
+            request.IsHandled = true;
+
+            _dbContext.Requests.Update(request);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok("Request status updated to accepted.");
+        }
+
+        [HttpPatch("denyRequest")]
+        public async Task<ActionResult> DenyRequest(int requestId)
+        {
+            var request = await _dbContext.Requests.FirstOrDefaultAsync(r => r.RequestId == requestId);
+
+            if (request == null)
+            {
+                return NotFound("Request not found.");
+            }
+
+            request.IsApproved = false;
+            request.IsHandled = true;
+
+            _dbContext.Requests.Update(request);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok("Request status updated to accepted.");
+        }
+
         //status change endpoints
 
         [HttpPut("muteStatusChange")]

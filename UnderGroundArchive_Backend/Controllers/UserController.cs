@@ -198,6 +198,7 @@ namespace UnderGroundArchive_Backend.Controllers
                     r.RequestMessage,
                     r.RequestDate,
                     r.IsApproved,
+                    r.IsHandled,
                     r.RequestType
                 })
                 .ToListAsync();
@@ -223,6 +224,7 @@ namespace UnderGroundArchive_Backend.Controllers
                     r.RequestMessage,
                     r.RequestDate,
                     r.IsApproved,
+                    r.IsHandled,
                     r.RequestType
                 })
                 .FirstOrDefaultAsync();
@@ -248,7 +250,8 @@ namespace UnderGroundArchive_Backend.Controllers
                 RequestMessage = request.RequestMessage,
                 RequestType = request.RequestType,
                 RequestDate = DateTime.Now, 
-                IsApproved = false   
+                IsApproved = false,
+                IsHandled = false
             };
 
             // Add and save the request

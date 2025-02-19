@@ -39,6 +39,7 @@ namespace UnderGroundArchive_Backend.Dbcontext
         public DbSet<ReportTypes> ReportTypes { get; set; }
         public DbSet<Chapters> Chapters { get; set; }
         public DbSet<CommentLike> CommentLikes { get; set; }
+        public DbSet<Favourites> Favourites { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +75,7 @@ namespace UnderGroundArchive_Backend.Dbcontext
             modelBuilder.Entity<ReportTypes>().HasKey(s => s.ReportTypeId);
 
             modelBuilder.Entity<Chapters>().HasKey(ch => ch.ChapterId);
+            modelBuilder.Entity<Favourites>().HasKey(f => f.FavouriteId);
 
             // Foreign Keys
 
@@ -172,6 +174,27 @@ namespace UnderGroundArchive_Backend.Dbcontext
                 .HasOne(b => b.Book)
                 .WithMany(g => g.Chapters)
                 .HasForeignKey(b => b.BookId);
+
+            //Favourites table
+
+            modelBuilder.Entity<Favourites>()
+                .HasOne(f => f.User)
+                .WithMany(u => u.Favourites)
+                .HasForeignKey(f => f.UserId)
+                .HasPrincipalKey(u => u.Id)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favourites>()
+                .HasOne(f => f.Book)
+                .WithMany(b => b.Favourites)
+                .HasForeignKey(f => f.BookId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favourites>()
+                .HasOne(f => f.LastReadChapter)
+                .WithMany(c => c.Favourites)
+                .HasForeignKey(f => f.ChapterId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

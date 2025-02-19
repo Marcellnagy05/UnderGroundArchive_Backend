@@ -227,19 +227,12 @@ namespace UnderGroundArchive_Backend.Controllers
                     .ToListAsync();
                 _dbContext.CriticRatings.RemoveRange(criticRatings);
 
-                // Remove the book from the favorites list of all users
-                var usersWithFavorite = await _dbContext.Users
-                    .Where(u => u.Favourites.Contains(bookId.ToString()))
-                    .ToListAsync();
+                var favoritesToRemove = await _dbContext.Favourites
+                 .Where(fav => fav.BookId == bookId)
+                 .ToListAsync();
 
-                foreach (var user in usersWithFavorite)
-                {
-                    // Remove the bookId from the Favourites string (if it exists)
-                    var favouritesList = user.Favourites.Split(',').Where(fav => fav != bookId.ToString()).ToList();
-                    user.Favourites = string.Join(",", favouritesList);
-
-                    _dbContext.Users.Update(user);
-                }
+                _dbContext.Favourites.RemoveRange(favoritesToRemove);
+                await _dbContext.SaveChangesAsync();
 
                 // Now delete the book
                 _dbContext.Books.Remove(book);

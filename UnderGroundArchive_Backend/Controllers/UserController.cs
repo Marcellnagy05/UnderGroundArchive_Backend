@@ -817,8 +817,7 @@ namespace UnderGroundArchive_Backend.Controllers
         }
 
 
-        // Favorite endpoints
-
+        //Favorite endpoints
 
         [HttpGet("favorites")]
         public async Task<IActionResult> GetFavorites()
@@ -829,11 +828,12 @@ namespace UnderGroundArchive_Backend.Controllers
                 return Unauthorized();
             }
 
-            // Retrieve the favorites from the user's Favourites property (stored as a comma-separated string)
-            var favoriteIds = user.Favourites?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
-            var favorites = await _dbContext.Books.Where(book => favoriteIds.Contains(book.BookId.ToString())).ToListAsync();
+            var favoriteBooks = await _dbContext.Favourites
+                .Where(f => f.UserId == user.Id)
+                .Select(f => f.Book)
+                .ToListAsync();
 
-            return Ok(favorites);
+            return Ok(favoriteBooks);
         }
 
         [HttpPost("addFavorite/{bookId}")]
@@ -848,20 +848,17 @@ namespace UnderGroundArchive_Backend.Controllers
             var bookExists = await _dbContext.Books.AnyAsync(b => b.BookId == bookId);
             if (!bookExists)
             {
-                return BadRequest("The specified Book does not exist.");
+                return BadRequest("The specified book does not exist.");
             }
 
-            // Add the book ID to the user's Favourites property
-            var favoriteIds = user.Favourites?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>();
-            if (favoriteIds.Contains(bookId.ToString()))
+            var alreadyFavorite = await _dbContext.Favourites.AnyAsync(f => f.UserId == user.Id && f.BookId == bookId);
+            if (alreadyFavorite)
             {
                 return BadRequest("This book is already in your favorites.");
             }
 
-            favoriteIds.Add(bookId.ToString());
-            user.Favourites = string.Join(",", favoriteIds);
-
-            _dbContext.Users.Update(user);
+            var favorite = new Favourites { UserId = user.Id, BookId = bookId };
+            _dbContext.Favourites.Add(favorite);
             await _dbContext.SaveChangesAsync();
 
             return Ok("Book added to favorites.");
@@ -876,16 +873,13 @@ namespace UnderGroundArchive_Backend.Controllers
                 return Unauthorized();
             }
 
-            var favoriteIds = user.Favourites?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>();
-            if (!favoriteIds.Contains(bookId.ToString()))
+            var favorite = await _dbContext.Favourites.FirstOrDefaultAsync(f => f.UserId == user.Id && f.BookId == bookId);
+            if (favorite == null)
             {
                 return BadRequest("This book is not in your favorites.");
             }
 
-            favoriteIds.Remove(bookId.ToString());
-            user.Favourites = string.Join(",", favoriteIds);
-
-            _dbContext.Users.Update(user);
+            _dbContext.Favourites.Remove(favorite);
             await _dbContext.SaveChangesAsync();
 
             return Ok("Book removed from favorites.");
@@ -900,7 +894,6 @@ namespace UnderGroundArchive_Backend.Controllers
                 return Unauthorized();
             }
 
-            // Validate that all provided book IDs exist
             var validBooks = await _dbContext.Books
                 .Where(book => bookIds.Contains(book.BookId))
                 .Select(book => book.BookId)
@@ -911,9 +904,11 @@ namespace UnderGroundArchive_Backend.Controllers
                 return BadRequest("Some provided book IDs are invalid.");
             }
 
-            // Update the user's Favourites property
-            user.Favourites = string.Join(",", bookIds);
-            _dbContext.Users.Update(user);
+            var existingFavorites = await _dbContext.Favourites.Where(f => f.UserId == user.Id).ToListAsync();
+            _dbContext.Favourites.RemoveRange(existingFavorites);
+
+            var newFavorites = bookIds.Select(bookId => new Favourites { UserId = user.Id, BookId = bookId });
+            await _dbContext.Favourites.AddRangeAsync(newFavorites);
             await _dbContext.SaveChangesAsync();
 
             return Ok("Favorites updated successfully.");

@@ -20,5 +20,6 @@ namespace UnderGroundArchive_Backend.Models
 
         [JsonIgnore]
         public virtual ICollection<Chapters> Chapters { get; set; }
+        public virtual ICollection<Favourites> Favourites { get; set; }
     }
 }
